@@ -13,6 +13,7 @@ use App\Http\Controllers\WatchlistController;
 use App\Http\Controllers\DataVisualizationController;
 use App\Http\Controllers\AdminController;
 
+Route::get('/up', fn() => response('OK', 200));
 Route::get('/', fn() => redirect()->route('login'));
 
 // Auth

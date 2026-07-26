@@ -22,9 +22,9 @@ php artisan view:clear || true
 # Run migrations and seed database if DB is configured
 if [ -n "$DB_HOST" ] || [ -n "$MYSQLHOST" ] || [ -n "$DATABASE_URL" ] || [ -n "$MYSQL_URL" ]; then
     echo "Running database migrations..."
-    php artisan migrate --force || echo "Warning: Migration failed or database not ready."
+    php artisan migrate --force --no-interaction || echo "Warning: Migration failed or database not ready."
     echo "Running database seeders..."
-    php artisan db:seed --force || echo "Warning: Database seeding skipped/failed."
+    php artisan db:seed --force --no-interaction || echo "Warning: Database seeding skipped/failed."
 fi
 
 # Re-cache for production optimization
