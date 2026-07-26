@@ -19,19 +19,15 @@ php artisan config:clear || true
 php artisan route:clear || true
 php artisan view:clear || true
 
-# Run migrations and seed database if DB is configured
+# Run migrations and seeders in background so web server starts instantly
 if [ -n "$DB_HOST" ] || [ -n "$MYSQLHOST" ] || [ -n "$DATABASE_URL" ] || [ -n "$MYSQL_URL" ]; then
-    echo "Running database migrations..."
-    php artisan migrate --force --no-interaction || echo "Warning: Migration failed or database not ready."
-    echo "Running database seeders..."
-    php artisan db:seed --force --no-interaction || echo "Warning: Database seeding skipped/failed."
+    (
+        echo "Running database migrations in background..."
+        php artisan migrate --force --no-interaction || echo "Warning: Migration failed."
+        echo "Running database seeders in background..."
+        php artisan db:seed --force --no-interaction || echo "Warning: Seeding skipped/failed."
+    ) &
 fi
-
-# Re-cache for production optimization
-echo "Optimizing application cache..."
-php artisan config:cache || true
-php artisan route:cache || true
-php artisan view:cache || true
 
 PORT=${PORT:-8080}
 echo "=== Starting Laravel HTTP Server on 0.0.0.0:${PORT} ==="
