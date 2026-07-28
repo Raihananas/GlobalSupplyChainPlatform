@@ -58,20 +58,32 @@ fi
 
 if [ "$IS_MYSQL_WORKING" = "true" ]; then
     echo "✅ MySQL database connection successful ($DETECTED_HOST). Using MySQL..."
+    export DB_CONNECTION=mysql
+    export DB_HOST="$DETECTED_HOST"
+    export DB_PORT="${DB_PORT:-${MYSQLPORT:-3306}}"
+    export DB_DATABASE="${DB_DATABASE:-${MYSQLDATABASE:-supply_chain_db}}"
+    export DB_USERNAME="${DB_USERNAME:-${MYSQLUSER:-root}}"
+    export DB_PASSWORD="${DB_PASSWORD:-${MYSQLPASSWORD:-}}"
+    
     echo "DB_CONNECTION=mysql" >> .env
-    echo "DB_HOST=$DETECTED_HOST" >> .env
-    [ -n "$DB_PORT" ] && echo "DB_PORT=$DB_PORT" >> .env || ([ -n "$MYSQLPORT" ] && echo "DB_PORT=$MYSQLPORT" >> .env)
-    [ -n "$DB_DATABASE" ] && echo "DB_DATABASE=$DB_DATABASE" >> .env || ([ -n "$MYSQLDATABASE" ] && echo "DB_DATABASE=$MYSQLDATABASE" >> .env)
-    [ -n "$DB_USERNAME" ] && echo "DB_USERNAME=$DB_USERNAME" >> .env || ([ -n "$MYSQLUSER" ] && echo "DB_USERNAME=$MYSQLUSER" >> .env)
-    [ -n "$DB_PASSWORD" ] && echo "DB_PASSWORD=$DB_PASSWORD" >> .env || ([ -n "$MYSQLPASSWORD" ] && echo "DB_PASSWORD=$MYSQLPASSWORD" >> .env)
+    echo "DB_HOST=$DB_HOST" >> .env
+    echo "DB_PORT=$DB_PORT" >> .env
+    echo "DB_DATABASE=$DB_DATABASE" >> .env
+    echo "DB_USERNAME=$DB_USERNAME" >> .env
+    echo "DB_PASSWORD=$DB_PASSWORD" >> .env
 else
-    echo "⚡ MySQL host unavailable or unresolved. Falling back to SQLite database..."
+    echo "⚡ MySQL host unavailable or unresolved. Using SQLite database..."
     SQLITE_PATH="/var/www/database/database.sqlite"
     touch "$SQLITE_PATH"
     chmod 777 "$SQLITE_PATH"
+    
+    export DB_CONNECTION=sqlite
+    export DB_DATABASE="$SQLITE_PATH"
+    
     echo "DB_CONNECTION=sqlite" >> .env
     echo "DB_DATABASE=$SQLITE_PATH" >> .env
 fi
+
 
 
 # Ensure APP_KEY exists in .env
