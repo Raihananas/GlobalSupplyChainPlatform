@@ -20,10 +20,15 @@ yarn-error.log
 /docker-compose.override.yml
 /storage/framework/cache/data/*
 !/storage/framework/cache/data/.gitignore
+!/storage/framework/cache/data/.gitkeep
 /storage/framework/sessions/*
 !/storage/framework/sessions/.gitignore
+!/storage/framework/sessions/.gitkeep
 /storage/framework/views/*
 !/storage/framework/views/.gitignore
+!/storage/framework/views/.gitkeep
 /storage/logs/*
 !/storage/logs/.gitignore
+!/storage/logs/.gitkeep
+
 
