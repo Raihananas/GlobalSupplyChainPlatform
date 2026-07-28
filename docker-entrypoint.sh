@@ -86,7 +86,13 @@ fi
 
 
 
+# Ensure SESSION_SECURE_COOKIE=true in .env for HTTPS reverse proxies
+if ! grep -q "^SESSION_SECURE_COOKIE=" .env; then
+    echo "SESSION_SECURE_COOKIE=true" >> .env
+fi
+
 # Ensure APP_KEY exists in .env
+
 if ! grep -q "^APP_KEY=base64" .env; then
     if [ -n "$APP_KEY" ]; then
         echo "APP_KEY=$APP_KEY" >> .env
