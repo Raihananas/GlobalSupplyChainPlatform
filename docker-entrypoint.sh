@@ -21,8 +21,14 @@ sed -i '/^DB_USERNAME=/d' .env 2>/dev/null || true
 sed -i '/^DB_PASSWORD=/d' .env 2>/dev/null || true
 sed -i '/^DATABASE_URL=/d' .env 2>/dev/null || true
 sed -i '/^MYSQL_URL=/d' .env 2>/dev/null || true
+sed -i '/^DB_CONNECTION=/d' .env 2>/dev/null || true
 
-# Determine DB Host & Connection
+# Filter unresolved Railway reference variables like ${{MySQL.MYSQLHOST}}
+case "$DB_HOST" in \$\{*|\$\{*) DB_HOST="" ;; esac
+case "$MYSQLHOST" in \$\{*|\$\{*) MYSQLHOST="" ;; esac
+case "$DATABASE_URL" in \$\{*|\$\{*) DATABASE_URL="" ;; esac
+case "$MYSQL_URL" in \$\{*|\$\{*) MYSQL_URL="" ;; esac
+
 DETECTED_HOST=""
 if [ -n "$DB_HOST" ] && [ "$DB_HOST" != "127.0.0.1" ] && [ "$DB_HOST" != "localhost" ]; then
     DETECTED_HOST="$DB_HOST"
@@ -30,25 +36,43 @@ elif [ -n "$MYSQLHOST" ]; then
     DETECTED_HOST="$MYSQLHOST"
 fi
 
-if [ -n "$DETECTED_HOST" ] || [ -n "$DATABASE_URL" ] || [ -n "$MYSQL_URL" ]; then
-    echo "MySQL connection detected ($DETECTED_HOST). Using MySQL database..."
-    sed -i '/^DB_CONNECTION=/d' .env 2>/dev/null || true
+IS_MYSQL_WORKING=false
+if [ -n "$DETECTED_HOST" ]; then
+    echo "Testing connection to MySQL host '$DETECTED_HOST'..."
+    TEST_PORT="${DB_PORT:-${MYSQLPORT:-3306}}"
+    TEST_DB="${DB_DATABASE:-${MYSQLDATABASE:-supply_chain_db}}"
+    TEST_USER="${DB_USERNAME:-${MYSQLUSER:-root}}"
+    TEST_PASS="${DB_PASSWORD:-${MYSQLPASSWORD:-}}"
+    
+    if php -r "
+        try {
+            \$pdo = new PDO('mysql:host=$DETECTED_HOST;port=$TEST_PORT;dbname=$TEST_DB', '$TEST_USER', '$TEST_PASS', [PDO::ATTR_TIMEOUT => 3]);
+            echo 'OK';
+        } catch (\Throwable \$e) {
+            exit(1);
+        }
+    " 2>/dev/null; then
+        IS_MYSQL_WORKING=true
+    fi
+fi
+
+if [ "$IS_MYSQL_WORKING" = "true" ]; then
+    echo "✅ MySQL database connection successful ($DETECTED_HOST). Using MySQL..."
     echo "DB_CONNECTION=mysql" >> .env
-    [ -n "$DETECTED_HOST" ] && echo "DB_HOST=$DETECTED_HOST" >> .env
+    echo "DB_HOST=$DETECTED_HOST" >> .env
     [ -n "$DB_PORT" ] && echo "DB_PORT=$DB_PORT" >> .env || ([ -n "$MYSQLPORT" ] && echo "DB_PORT=$MYSQLPORT" >> .env)
     [ -n "$DB_DATABASE" ] && echo "DB_DATABASE=$DB_DATABASE" >> .env || ([ -n "$MYSQLDATABASE" ] && echo "DB_DATABASE=$MYSQLDATABASE" >> .env)
     [ -n "$DB_USERNAME" ] && echo "DB_USERNAME=$DB_USERNAME" >> .env || ([ -n "$MYSQLUSER" ] && echo "DB_USERNAME=$MYSQLUSER" >> .env)
     [ -n "$DB_PASSWORD" ] && echo "DB_PASSWORD=$DB_PASSWORD" >> .env || ([ -n "$MYSQLPASSWORD" ] && echo "DB_PASSWORD=$MYSQLPASSWORD" >> .env)
 else
-    echo "No external MySQL host detected. Falling back to SQLite database for instant compatibility..."
+    echo "⚡ MySQL host unavailable or unresolved. Falling back to SQLite database..."
     SQLITE_PATH="/var/www/database/database.sqlite"
     touch "$SQLITE_PATH"
     chmod 777 "$SQLITE_PATH"
-    sed -i '/^DB_CONNECTION=/d' .env 2>/dev/null || true
-    sed -i '/^DB_DATABASE=/d' .env 2>/dev/null || true
     echo "DB_CONNECTION=sqlite" >> .env
     echo "DB_DATABASE=$SQLITE_PATH" >> .env
 fi
+
 
 # Ensure APP_KEY exists in .env
 if ! grep -q "^APP_KEY=base64" .env; then
