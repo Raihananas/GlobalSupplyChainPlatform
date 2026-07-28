@@ -13,7 +13,7 @@ if [ ! -f .env ]; then
     cp .env.example .env
 fi
 
-# Remove local fallback DB settings from .env so system environment variables take precedence
+# Clean out old DB / Session settings from .env
 sed -i '/^DB_HOST=/d' .env 2>/dev/null || true
 sed -i '/^DB_PORT=/d' .env 2>/dev/null || true
 sed -i '/^DB_DATABASE=/d' .env 2>/dev/null || true
@@ -22,6 +22,8 @@ sed -i '/^DB_PASSWORD=/d' .env 2>/dev/null || true
 sed -i '/^DATABASE_URL=/d' .env 2>/dev/null || true
 sed -i '/^MYSQL_URL=/d' .env 2>/dev/null || true
 sed -i '/^DB_CONNECTION=/d' .env 2>/dev/null || true
+sed -i '/^SESSION_DRIVER=/d' .env 2>/dev/null || true
+sed -i '/^SESSION_SECURE_COOKIE=/d' .env 2>/dev/null || true
 
 # Filter unresolved Railway reference variables like ${{MySQL.MYSQLHOST}}
 case "$DB_HOST" in \$\{*|\$\{*) DB_HOST="" ;; esac
@@ -84,21 +86,21 @@ else
     echo "DB_DATABASE=$SQLITE_PATH" >> .env
 fi
 
-
-
-# Ensure SESSION_SECURE_COOKIE=true in .env for HTTPS reverse proxies
-if ! grep -q "^SESSION_SECURE_COOKIE=" .env; then
-    echo "SESSION_SECURE_COOKIE=true" >> .env
-fi
-
-# Ensure APP_KEY exists in .env
+# Set robust Session & App Key settings for Container Environment
+export SESSION_DRIVER=cookie
+export SESSION_SECURE_COOKIE=true
+echo "SESSION_DRIVER=cookie" >> .env
+echo "SESSION_SECURE_COOKIE=true" >> .env
 
 if ! grep -q "^APP_KEY=base64" .env; then
     if [ -n "$APP_KEY" ]; then
         echo "APP_KEY=$APP_KEY" >> .env
+        export APP_KEY="$APP_KEY"
     else
         echo "Setting fallback APP_KEY..."
-        echo "APP_KEY=base64:BartVDYYqLF/fMh8JRYr8n+D8jvKqCTCaAgxBjE1+so=" >> .env
+        FALLBACK_KEY="base64:BartVDYYqLF/fMh8JRYr8n+D8jvKqCTCaAgxBjE1+so="
+        echo "APP_KEY=$FALLBACK_KEY" >> .env
+        export APP_KEY="$FALLBACK_KEY"
     fi
 fi
 
@@ -109,13 +111,11 @@ php artisan route:clear || true
 php artisan view:clear || true
 
 echo "Running database migrations..."
-php artisan migrate --force --no-interaction || echo "Warning: Migration failed."
+php artisan migrate --force --no-interaction
 
 echo "Running database seeders..."
-php artisan db:seed --force --no-interaction || echo "Warning: Seeding failed."
+php artisan db:seed --force --no-interaction
 
 PORT=${PORT:-8080}
 echo "=== Starting Laravel HTTP Server on 0.0.0.0:${PORT} ==="
 exec php artisan serve --host=0.0.0.0 --port=$PORT
-
-
